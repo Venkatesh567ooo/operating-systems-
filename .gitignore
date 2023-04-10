@@ -1,32 +1,148 @@
-# Prerequisites
-*.d
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
 
-# Precompiled Headers
-*.gch
-*.pch
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
 
-# Fortran module files
-*.mod
-*.smod
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
 
-# Executables
-*.exe
-*.out
-*.app
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+// Memory block class
+class MemoryBlock {
+public:
+    int start_address; // Starting address of the block
+    int end_address; // Ending address of the block
+    int process_id; // ID of the process that occupies the block
+};
+
+// Memory manager class
+class MemoryManager {
+public:
+    vector<MemoryBlock> memory_blocks; // Vector to store all memory blocks
+    int memory_size; // Total size of memory
+
+    // Constructor to initialize memory manager
+    MemoryManager(int size) {
+        memory_size = size;
+        MemoryBlock block;
+        block.start_address = 0;
+        block.end_address = memory_size - 1;
+        block.process_id = -1;
+        memory_blocks.push_back(block);
+    }
+
+    // Function to allocate memory block to process
+    bool allocateMemory(int process_id, int block_size, string allocation_algorithm) {
+        // Find the block to allocate memory to
+        int index = -1;
+        if (allocation_algorithm == "First-Fit") {
+            // First-Fit algorithm
+            for (int i = 0; i < memory_blocks.size(); i++) {
+                if (memory_blocks[i].process_id == -1 && (memory_blocks[i].end_address - memory_blocks[i].start_address + 1) >= block_size) {
+                    index = i;
+                    break;
+                }
+            }
+        } else if (allocation_algorithm == "Best-Fit") {
+            // Best-Fit algorithm
+            int min_diff = memory_size;
+            for (int i = 0; i < memory_blocks.size(); i++) {
+                if (memory_blocks[i].process_id == -1 && (memory_blocks[i].end_address - memory_blocks[i].start_address + 1) >= block_size) {
+                    int diff = memory_blocks[i].end_address - memory_blocks[i].start_address + 1 - block_size;
+                    if (diff < min_diff) {
+                        min_diff = diff;
+                        index = i;
+                    }
+                }
+            }
+        } else if (allocation_algorithm == "Worst-Fit") {
+            // Worst-Fit algorithm
+            int max_diff = -1;
+            for (int i = 0; i < memory_blocks.size(); i++) {
+                if (memory_blocks[i].process_id == -1 && (memory_blocks[i].end_address - memory_blocks[i].start_address + 1) >= block_size) {
+                    int diff = memory_blocks[i].end_address - memory_blocks[i].start_address + 1 - block_size;
+                    if (diff > max_diff) {
+                        max_diff = diff;
+                        index = i;
+                    }
+                }
+            }
+        }
+
+        // Allocate memory to the block
+        if (index != -1) {
+            MemoryBlock block;
+            block.start_address = memory_blocks[index].start_address;
+            block.end_address = block.start_address + block_size - 1;
+            block.process_id = process_id;
+            memory_blocks.insert(memory_blocks.begin() + index, block);
+
+            memory_blocks[index + 1].start_address = block.end_address + 1;
+            memory_blocks[index + 1].end_address = memory_blocks[index + 1].end_address;
+            memory_blocks[index + 1].process_id = -1;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    // Function to deallocate memory block occupied by process
+    bool deallocateMemory(int process_id) {
+        for (int i = 0; i < memory_blocks.size(); i++) {
+            if (memory_blocks[i].process_id == process_id) {
+                memory_blocks[i].process_id = -1;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Function to calculate the average fragmentation and number of wasted memory blocks
+    void calculateFragmentationAndWastedMemory(int& avg_fragmentation, int& num_wasted_blocks) {
+        int total_fragmentation = 0;
+        int num_free_blocks = 0;
+        int total_wasted_memory = 0;
+
+        for (int i = 0; i < memory_blocks.size(); i++) {
+            if (memory_blocks[i].process_id == -1) {
+                num_free_blocks++;
+                total_wasted_memory += memory_blocks[i].end_address - memory_blocks[i].start_address + 1;
+                if (i > 0 && memory_blocks[i - 1].process_id == -1) {
+                    total_fragmentation += memory_blocks[i].start_address - memory_blocks[i - 1].end_address - 1;
+                }
+            }
+        }
+
+        if (num_free_blocks > 0) {
+            avg_fragmentation = total_fragmentation / num_free_blocks;
+            num_wasted_blocks = num_free_blocks;
+        } else {
+            avg_fragmentation = 0;
+            num_wasted_blocks = 0;
+        }
+    }
+};
+
+int main() {
+    // Initialize memory manager with 1000 bytes of memory
+    MemoryManager memory_manager(1000);
+
+    // Allocate memory to process using First-Fit algorithm
+    memory_manager.allocateMemory(1, 200, "First-Fit");
+
+    // Deallocate memory occupied by process
+    memory_manager.deallocateMemory(1);
+
+    // Calculate average fragmentation and number of wasted memory blocks
+    int avg_fragmentation, num_wasted_blocks;
+    memory_manager.calculateFragmentationAndWastedMemory(avg_fragmentation, num_wasted_blocks);
+
+    // Display simulation results
+    cout << "Average Fragmentation: " << avg_fragmentation << endl;
+    cout << "Number of Wasted Memory Blocks: " << num_wasted_blocks << endl;
+
+    return 0;
+}
